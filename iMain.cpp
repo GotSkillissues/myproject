@@ -18,6 +18,11 @@ void collcheck3();
 void perk();
 void perkreset();
 void perksup();
+void showscore();
+void highscore();
+void showhighscore();
+void updatehighscore();
+void savehighscore();
 
 int balltimer = 0;
 int x1 = 1200, Y = 675;
@@ -39,6 +44,9 @@ int fastcount = 0;
 int slowcount = 0;
 int gothrough = 0;
 int gocount = 0;
+int score = 0;
+const int leaderboards = 5;
+int flag=0;
 
 bool start = false;
 bool musicOn = true;
@@ -53,6 +61,16 @@ char difficulty[3][2000] = {"dxball\\easy.bmp", "dxball\\medium.bmp", "dxball\\h
 char cont[2][2000] = {"dxball\\continue.bmp", "dxball\\gameover.bmp"};
 char go[200] = {"dxball\\pressR.bmp"};
 char power[6][200] = {"perks\\smallpaddle.bmp", "perks\\bigpaddle.bmp", "perks\\fastball.bmp", "perks\\slowball.bmp", "perks\\addlife.bmp", "perks\\throughbrick.bmp"};
+
+struct LeaderboardEntry
+{
+	char name[50];
+	int score;
+};
+
+LeaderboardEntry leaderboard[leaderboards];
+int leaderboardSize = 0;
+char playerName[50] = "";
 
 struct brick
 {
@@ -83,6 +101,92 @@ struct perks p[6];
 	function iDraw() is called again and again by the system.
 
 	*/
+void highscore()
+{
+	FILE *file = fopen("leaderboard.txt", "r");
+	if (file)
+	{
+		leaderboardSize = 0;
+		while (fscanf(file, "%s %d", leaderboard[leaderboardSize].name, &leaderboard[leaderboardSize].score) == 2)
+		{
+			++leaderboardSize;
+			if (leaderboardSize >= leaderboards)
+			{
+				break;
+			}
+		}
+		fclose(file);
+	}
+
+	// Sort the leaderboard
+	for (int i = 0; i < leaderboardSize - 1; ++i)
+	{
+		for (int j = i + 1; j < leaderboardSize; ++j)
+		{
+			if (leaderboard[i].score < leaderboard[j].score)
+			{
+				LeaderboardEntry temp = leaderboard[i];
+				leaderboard[i] = leaderboard[j];
+				leaderboard[j] = temp;
+			}
+		}
+	}
+}
+
+void showhighscore()
+{
+	iSetColor(255, 255, 255);
+	iText(500, 600, "Leaderboard", GLUT_BITMAP_HELVETICA_18);
+	for (int i = 0; i < leaderboardSize; ++i)
+	{
+		char entry[50];
+		sprintf(entry, "%d. %s - %d", i + 1, leaderboard[i].name, leaderboard[i].score);
+		iText(500, 570 - i * 20, entry, GLUT_BITMAP_HELVETICA_18);
+	}
+}
+void updateLeaderboard(const char *playerName, int playerScore)
+{
+	// Check if the score is among the top five
+	if (leaderboardSize < leaderboards || playerScore > leaderboard[leaderboardSize - 1].score)
+	{
+		if (leaderboardSize < leaderboards)
+		{
+			++leaderboardSize;
+		}
+
+		// Insert the new score in the correct position
+		int pos = leaderboardSize - 1;
+		for (int i = 0; i < leaderboardSize - 1; ++i)
+		{
+			if (playerScore > leaderboard[i].score)
+			{
+				pos = i;
+				break;
+			}
+		}
+
+		for (int i = leaderboardSize - 1; i > pos; --i)
+		{
+			leaderboard[i] = leaderboard[i - 1];
+		}
+
+		strncpy(leaderboard[pos].name, playerName, sizeof(leaderboard[pos].name) - 1);
+		leaderboard[pos].name[sizeof(leaderboard[pos].name) - 1] = '\0';
+		leaderboard[pos].score = playerScore;
+	}
+}
+void saveLeaderboard()
+{
+	FILE *file = fopen("leaderboard.txt", "w");
+	if (file)
+	{
+		for (int i = 0; i < leaderboardSize; ++i)
+		{
+			fprintf(file, "%s %d\n", leaderboard[i].name, leaderboard[i].score);
+		}
+		fclose(file);
+	}
+}
 
 void perkreset()
 {
@@ -99,6 +203,14 @@ void perkreset()
 		gothrough = 0;
 		gocount = 0;
 	}
+}
+
+void showscore()
+{
+	char scoreStr[20];
+	sprintf(scoreStr, "Score: %d", score);
+	iSetColor(255, 255, 255);
+	iText(550, 650, scoreStr, GLUT_BITMAP_HELVETICA_18);
 }
 
 void iDraw()
@@ -120,6 +232,7 @@ void iDraw()
 	}
 	else if (s == 4 && t == 2)
 	{
+		iClear();
 		iShowBMP(0, 0, dx[2]);
 		iShowBMP(2, 648, dx[0]);
 		if (difficult == 1)
@@ -138,11 +251,7 @@ void iDraw()
 
 	else if (s == 3)
 	{
-		// place your drawing codes here
 		iClear();
-		// iSetColor(186, 208, 182);
-		// iFilledRectangle(paddle_x, paddle_y, paddle_dx, paddle_dy);
-		// iFilledRectangle(10, 30, 20, 20);
 		iShowBMP(0, 0, background);
 		iSetColor(237, 145, 72);
 		iFilledCircle(ball_x, ball_y, 7);
@@ -176,6 +285,7 @@ void iDraw()
 			showbrick3();
 		}
 		iShowBMP(2, 648, life[lyf - 1]);
+		showscore();
 	}
 	else if (s == 5)
 	{
@@ -184,6 +294,23 @@ void iDraw()
 	else if (s == 6)
 	{
 		iShowBMP(0, 0, cont[1]);
+		iSetColor(0, 0, 0);
+		iFilledRectangle(530, 200, 195, 24);
+		iSetColor(255, 255, 255);
+		iText(532, 205, "Press F to Pay Respect", GLUT_BITMAP_HELVETICA_18);
+	}
+	else if (s == 7)
+	{
+		iClear();
+		iSetColor(255, 255, 255);
+		iText(500, 400, "Enter your name:", GLUT_BITMAP_HELVETICA_18);
+		iText(500, 370, playerName, GLUT_BITMAP_HELVETICA_18);
+	}
+	else if (s == 8 && t == 10)
+	{
+		iClear();
+		iShowBMP(2,620,dx[0]);
+		showhighscore();
 	}
 }
 
@@ -200,6 +327,7 @@ void collcheck1()
 			{
 				b[i].show = false;
 				count++;
+				score = count * 10;
 				if (fastball == 1)
 				{
 					fastcount++;
@@ -227,7 +355,7 @@ void collcheck1()
 						gocount = 0;
 					}
 				}
-				if (count == 2)
+				if (count == 3)
 				{
 					s = 5;
 				}
@@ -363,7 +491,7 @@ void collcheck1()
 		if (i == 44 && b[i].show == false && p[4].used == false)
 		{
 			p[4].active = true;
-			p[4].type = 3;
+			p[4].type = 5;
 			if (!p[4].move)
 			{
 				p[4].x = b[i].x + b[i].dx / 2 - 15;
@@ -431,6 +559,7 @@ void collcheck2()
 				{
 					b2[i].show = false;
 					count2++;
+					score = count2 * 12 + 600;
 					if (fastball == 1)
 					{
 						fastcount++;
@@ -668,6 +797,7 @@ void collcheck3()
 				{
 					b3[i].show = false;
 					count3++;
+					score = count3 * 15 + 1800;
 					if (fastball == 1)
 					{
 						fastcount++;
@@ -1164,6 +1294,7 @@ void reset()
 	level = 1;
 	restart();
 	perkreset();
+	score=0;
 }
 
 void restart()
@@ -1201,7 +1332,7 @@ void iMouse(int button, int state, int mx, int my)
 				if (level == 1)
 				{
 					level = 2;
-					lyf=3;
+					lyf = 3;
 					restart();
 					count = 0;
 					perkreset();
@@ -1209,37 +1340,56 @@ void iMouse(int button, int state, int mx, int my)
 				else if (level == 2)
 				{
 					level = 3;
-					lyf=3;
+					lyf = 3;
 					count2 = 0;
 					restart();
 					perkreset();
 				}
 			}
-		}
-		if (mx >= 945 && mx < 1095 && my >= 255 && my < 305) // start
-		{
-			s = 3;
-			if (t == 3)
-			{
-				reset();
-				iResumeTimer(0);
+			if(mx>=608 && mx<=845  && my>=52 && my<=120){
+				s=7;
 			}
 		}
-		if (mx >= 945 && mx < 1095 && my >= 190 && my < 240) // resume
-		{
-			if (t == 1)
-			{
-			}
-			else if (t == 3)
+		if (s == 2)
+		{ 
+			if (mx >= 945 && mx < 1095 && my >= 255 && my < 305) // start
 			{
 				s = 3;
-				resume = 2;
+				flag=1;
+				if (t == 3)
+				{
+					reset();
+					iResumeTimer(0);
+					resume=1;
+				}
+			}
+			if (mx >= 945 && mx < 1095 && my >= 190 && my < 240 ) // resume
+			{
+				if (t == 1)
+				{
+				}
+				else if (t == 3)
+				{
+					s = 3;
+					resume = 2;
+				}
+			}
+			if (mx >= 945 && mx < 1095 && my >= 125 && my < 175) // option
+			{
+				s = 4;
+				t = 2;
+			}
+			if (mx >= 945 && mx < 1095 && my >= 60 && my < 110) // exit
+			{
+				exit(0);
 			}
 		}
-		if (mx >= 945 && mx < 1095 && my >= 125 && my < 175) // option
-		{
-			s = 4;
-			t = 2;
+		if(s==8){
+		if (mx >= 2 && mx <= 27 && my >= 620 && my <= 645) // option
+			{
+				s = 4;
+				t = 2;
+			}
 		}
 		if (s == 3)
 		{
@@ -1250,26 +1400,27 @@ void iMouse(int button, int state, int mx, int my)
 				t = 3;
 			}
 		}
-		if (mx >= 945 && mx < 1095 && my >= 60 && my < 110) // exit
+		if (t == 2 && s == 4)
 		{
-			exit(0);
-		}
-		if (t == 2)
-		{
-			if (mx >= 2 && mx <= 27 && my >= 648 && my <= 673) // option
+			if (mx >= 116 && mx <= 940 && my >= 35 && my <= 185)
+			{
+				s = 8;
+				t = 10;
+			}
+			else if (mx >= 2 && mx <= 27 && my >= 648 && my <= 673) // option
 			{
 				s = 2;
 				t = 3;
 			}
-			if (mx >= 80 && mx <= 320 && my >= 545 && my <= 605)
+			else if (mx >= 80 && mx <= 320 && my >= 545 && my <= 605)
 			{
 				difficult = 2;
 			}
-			if (mx >= 880 && mx <= 1120 && my >= 545 && my <= 605)
+			else if (mx >= 880 && mx <= 1120 && my >= 545 && my <= 605)
 			{
 				difficult = 1;
 			}
-			if (mx >= 480 && mx <= 720 && my >= 545 && my <= 605)
+			else if (mx >= 480 && mx <= 720 && my >= 545 && my <= 605)
 			{
 				difficult = 3;
 			}
@@ -1293,6 +1444,37 @@ void iMouse(int button, int state, int mx, int my)
 	*/
 void iKeyboard(unsigned char key)
 {
+	if (s == 6 && key == 'f')
+	{
+		s = 7;
+	}
+	else if (s == 7)
+	{
+		if (key == '\r')
+		{
+			updateLeaderboard(playerName, score);
+			saveLeaderboard();
+			reset();
+			s = 2;
+		}
+		else if (key == '\b')
+		{
+			int len = strlen(playerName);
+			if (len > 0)
+			{
+				playerName[len - 1] = '\0';
+			}
+		}
+		else
+		{
+			int len = strlen(playerName);
+			if (len < sizeof(playerName) - 1)
+			{
+				playerName[len] = key;
+				playerName[len + 1] = '\0';
+			}
+		}
+	}
 	if (key == 'r')
 	{
 		iResumeTimer(0);
@@ -1396,6 +1578,7 @@ void iSpecialKeyboard(unsigned char key)
 
 int main()
 {
+	highscore();
 	// place your own initialization codes here.
 	iSetTimer(16, ballchange);
 	iInitialize(x1, Y, "demo0000");
