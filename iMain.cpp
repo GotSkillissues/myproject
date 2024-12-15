@@ -25,9 +25,13 @@ void updatehighscore();
 void savehighscore();
 
 int balltimer = 0;
+const int pi = 3.1416;
 int x1 = 1200, Y = 675;
-int paddle_x = x1 / 2 - 75, paddle_y = 1, paddle_dx = 150, paddle_dy = 7;	  // paddle
-int ball_x = paddle_x + 70, ball_y = paddle_y + 16, ball_dx = 5, ball_dy = 7; // ball
+int paddle_x = x1 / 2 - 75, paddle_y = 1, paddle_dx = 150, paddle_dy = 7; // paddle
+int ball_x = paddle_x + 70, ball_y = paddle_y + 16;						  // ball
+int theta = 10;
+int ball_dx = (int)10 * cos(theta * pi / 180);
+int ball_dy = (int)10 * sin(theta * pi / 180);
 int s = 1;
 int t = 1;
 int count = 0;
@@ -46,21 +50,24 @@ int gothrough = 0;
 int gocount = 0;
 int score = 0;
 const int leaderboards = 5;
-int flag=0;
+int flag = 0;
+int querry = 0;
+int minus = 0;
 
 bool start = false;
 bool musicOn = true;
 
 char paddle[3][2000] = {"bc\\007.bmp", "bc\\smallpaddle.bmp", "bc\\bigpaddle.bmp"};
-char starting[2][100] = {"bc\\home2.bmp", "dxball\\2.bmp"};																			  // loading page
-char background[20] = {"bg.bmp"};																									  // background
-char home[6][2000] = {"bc\\home1.bmp", "menu\\Play.bmp", "menu\\New.bmp", "menu\\Resume.bmp", "menu\\Options.bmp", "menu\\Exit.bmp"}; // menupage
-char dx[3][2000] = {"dxball\\4.bmp", "dxball\\5.bmp", "dxball\\6.bmp"};																  // 4==back, 5==pause, 10==options
+char starting[2][100] = {"bc\\home2.bmp", "dxball\\2.bmp"};																																				 // loading page
+char background[20] = {"bg.bmp"};																																										 // background
+char home[9][2000] = {"bc\\home1.bmp", "menu\\Play.bmp", "menu\\New.bmp", "menu\\Resume.bmp", "menu\\Options.bmp", "menu\\Exit.bmp", "menu\\1question.bmp", "menu\\musicon.bmp", "menu\\musicoff1.bmp"}; // menupage
+char dx[3][2000] = {"dxball\\4.bmp", "dxball\\5.bmp", "dxball\\6.bmp"};																																	 // 4==back, 5==pause, 10==options
 char life[3][200] = {"dxball\\x.bmp", "dxball\\4x.bmp", "dxball\\3x.bmp"};
 char difficulty[3][2000] = {"dxball\\easy.bmp", "dxball\\medium.bmp", "dxball\\hard.bmp"};
 char cont[2][2000] = {"dxball\\continue.bmp", "dxball\\gameover.bmp"};
 char go[200] = {"dxball\\pressR.bmp"};
 char power[6][200] = {"perks\\smallpaddle.bmp", "perks\\bigpaddle.bmp", "perks\\fastball.bmp", "perks\\slowball.bmp", "perks\\addlife.bmp", "perks\\throughbrick.bmp"};
+char query[2][200] = {"bc\\about.bmp", "bc\\instruction.bmp"};
 
 struct LeaderboardEntry
 {
@@ -117,9 +124,7 @@ void highscore()
 		}
 		fclose(file);
 	}
-
-	// Sort the leaderboard
-	for (int i = 0; i < leaderboardSize - 1; ++i)
+	for (int i = 0; i < leaderboardSize - 1; ++i) // sorting scores
 	{
 		for (int j = i + 1; j < leaderboardSize; ++j)
 		{
@@ -146,15 +151,12 @@ void showhighscore()
 }
 void updateLeaderboard(const char *playerName, int playerScore)
 {
-	// Check if the score is among the top five
 	if (leaderboardSize < leaderboards || playerScore > leaderboard[leaderboardSize - 1].score)
 	{
 		if (leaderboardSize < leaderboards)
 		{
 			++leaderboardSize;
 		}
-
-		// Insert the new score in the correct position
 		int pos = leaderboardSize - 1;
 		for (int i = 0; i < leaderboardSize - 1; ++i)
 		{
@@ -226,9 +228,24 @@ void iDraw()
 		iClear();
 		iShowBMP(0, 0, home[0]);
 		iShowBMP(945, 60, home[5]);	 // exit
-		iShowBMP(945, 125, home[4]); // options
-		iShowBMP(945, 190, home[3]); // resume
-		iShowBMP(945, 255, home[2]); // newgame
+		iShowBMP(945, 125, home[6]); // query
+		iShowBMP(945, 190, home[4]); // options
+		iShowBMP(945, 255, home[3]); // resume
+		iShowBMP(945, 320, home[2]); // newgame
+		if (querry == 1)
+		{
+			iShowBMP(0, 0, query[0]);
+			iShowBMP(600, 0, query[1]);
+			iShowBMP(2, 648, dx[0]);
+		}
+		if (musicOn)
+		{
+			iShowBMP(950, 600, home[7]);
+		}
+		else if (!musicOn)
+		{
+			iShowBMP(950, 600, home[8]);
+		}
 	}
 	else if (s == 4 && t == 2)
 	{
@@ -309,7 +326,7 @@ void iDraw()
 	else if (s == 8 && t == 10)
 	{
 		iClear();
-		iShowBMP(2,620,dx[0]);
+		iShowBMP(2, 620, dx[0]);
 		showhighscore();
 	}
 }
@@ -327,6 +344,7 @@ void collcheck1()
 			{
 				b[i].show = false;
 				count++;
+				PlaySound("Music\\ballhit.wav", NULL, SND_ASYNC);
 				score = count * 10;
 				if (fastball == 1)
 				{
@@ -355,7 +373,7 @@ void collcheck1()
 						gocount = 0;
 					}
 				}
-				if (count == 3)
+				if (count == 60)
 				{
 					s = 5;
 				}
@@ -1246,7 +1264,10 @@ void ballchange()
 		}
 		if (ball_x >= paddle_x && ball_x <= paddle_dx + paddle_x && ball_y <= (paddle_y + paddle_dy + 15) && ball_y >= paddle_y)
 		{
-			ball_dy = -ball_dy;
+			theta = (paddle_x + paddle_dx - ball_x) + 40;
+			ball_dx = (int)10 * cos(theta * pi / 180);
+			ball_dy = (int)10 * sin(theta * pi / 180);
+			minus++;
 		}
 		else
 		{
@@ -1294,7 +1315,7 @@ void reset()
 	level = 1;
 	restart();
 	perkreset();
-	score=0;
+	score = 0;
 }
 
 void restart()
@@ -1324,6 +1345,14 @@ void iMouse(int button, int state, int mx, int my)
 	{
 		// place your codes here
 		//	printf("x = %d, y= %d\n",mx,my);
+		if (querry == 1)
+		{
+			if (mx >= 2 && mx <= 27 && my >= 648 && my <= 673)
+			{
+				querry = 0;
+				s = 2;
+			}
+		}
 		if (s == 5)
 		{
 			if (mx >= 344 && mx <= 585 && my >= 55 && my <= 120)
@@ -1346,24 +1375,25 @@ void iMouse(int button, int state, int mx, int my)
 					perkreset();
 				}
 			}
-			if(mx>=608 && mx<=845  && my>=52 && my<=120){
-				s=7;
+			if (mx >= 608 && mx <= 845 && my >= 52 && my <= 120)
+			{
+				s = 7;
 			}
 		}
 		if (s == 2)
-		{ 
-			if (mx >= 945 && mx < 1095 && my >= 255 && my < 305) // start
+		{
+			if (mx >= 945 && mx < 1095 && my >= 320 && my < 370) // start
 			{
 				s = 3;
-				flag=1;
+				flag = 1;
 				if (t == 3)
 				{
 					reset();
 					iResumeTimer(0);
-					resume=1;
+					resume = 1;
 				}
 			}
-			if (mx >= 945 && mx < 1095 && my >= 190 && my < 240 ) // resume
+			if (mx >= 945 && mx < 1095 && my >= 255 && my < 305) // resume
 			{
 				if (t == 1)
 				{
@@ -1374,18 +1404,23 @@ void iMouse(int button, int state, int mx, int my)
 					resume = 2;
 				}
 			}
-			if (mx >= 945 && mx < 1095 && my >= 125 && my < 175) // option
+			if (mx >= 945 && mx < 1095 && my >= 190 && my < 240) // option
 			{
 				s = 4;
 				t = 2;
 			}
-			if (mx >= 945 && mx < 1095 && my >= 60 && my < 110) // exit
+			if (mx >= 945 && mx < 1095 && my >= 125 && my < 175) // query button
+			{
+				querry = 1;
+			}
+			if (mx >= 945 && mx <= 1095 && my >= 60 && my <= 110)
 			{
 				exit(0);
 			}
 		}
-		if(s==8){
-		if (mx >= 2 && mx <= 27 && my >= 620 && my <= 645) // option
+		if (s == 8)
+		{
+			if (mx >= 2 && mx <= 27 && my >= 620 && my <= 645) // option
 			{
 				s = 4;
 				t = 2;
@@ -1444,6 +1479,19 @@ void iMouse(int button, int state, int mx, int my)
 	*/
 void iKeyboard(unsigned char key)
 {
+	if (key == 'm' && s == 2)
+	{
+		if (musicOn)
+		{
+			musicOn = false;
+			PlaySound(0, 0, 0);
+		}
+		else
+		{
+			musicOn = true;
+			PlaySound("music\\bgmusic.wav", NULL, SND_LOOP | SND_ASYNC);
+		}
+	}
 	if (s == 6 && key == 'f')
 	{
 		s = 7;
@@ -1452,7 +1500,7 @@ void iKeyboard(unsigned char key)
 	{
 		if (key == '\r')
 		{
-			updateLeaderboard(playerName, score);
+			updateLeaderboard(playerName, score - minus);
 			saveLeaderboard();
 			reset();
 			s = 2;
@@ -1564,11 +1612,32 @@ void iSpecialKeyboard(unsigned char key)
 		paddle_x += 15;
 		if (!start)
 			ball_x += 15;
-		if (paddle_x > 1060 || paddle_x > 1770)
+		if (paddle_dx == 120)
 		{
-			paddle_x = 1060;
-			if (!start)
-				ball_x = paddle_x + 70;
+			if (paddle_x + paddle_dx >= 1200)
+			{
+				paddle_x = 1100;
+				if (!start)
+					ball_x = paddle_x + 70;
+			}
+		}
+		else if (paddle_dx == 150)
+		{
+			if (paddle_x + paddle_dx >= 1200)
+			{
+				paddle_x = 1060;
+				if (!start)
+					ball_x = paddle_x + 70;
+			}
+		}
+		if (paddle_dx == 180)
+		{
+			if (paddle_x + paddle_dx >= 1200)
+			{
+				paddle_x = 1030;
+				if (!start)
+					ball_x = paddle_x + 70;
+			}
 		}
 	}
 	if (key == GLUT_KEY_END)
@@ -1578,6 +1647,10 @@ void iSpecialKeyboard(unsigned char key)
 
 int main()
 {
+	if (musicOn)
+	{
+		PlaySound("music\\bgmusic.wav", NULL, SND_LOOP | SND_ASYNC);
+	}
 	highscore();
 	// place your own initialization codes here.
 	iSetTimer(16, ballchange);
